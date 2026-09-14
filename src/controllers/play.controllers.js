@@ -56,11 +56,17 @@ const playVideo = asyncHandler(async (req, res) => {
         return res.status(404).send("Matching Flixy video was not found");
     }
 
+    // Cloudinary's secure URL is preferred. Existing HTTP URLs are upgraded to HTTPS.
+    const videoUrl = String(video.videoFile || "").replace(/^http:\/\//i, "https://");
+    const thumbnailUrl = String(video.thumbnail || "").replace(/^http:\/\//i, "https://");
+
+    if (!videoUrl) {
+        return res.status(404).send("Flixy video URL is missing");
+    }
+
     const title = escapeHtml(video.title);
-    const videoUrl = escapeHtml(video.videoFile);
-    const thumbnail = video.thumbnail
-        ? escapeHtml(video.thumbnail)
-        : "";
+    const safeVideoUrl = escapeHtml(videoUrl);
+    const safeThumbnailUrl = escapeHtml(thumbnailUrl);
 
     res.status(200).type("html").send(`
 <!DOCTYPE html>
@@ -69,7 +75,6 @@ const playVideo = asyncHandler(async (req, res) => {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${title}</title>
-
 <style>
 html,body{
     margin:0;
@@ -79,13 +84,11 @@ html,body{
     background:#000;
     overflow:hidden;
 }
-
 body{
     display:flex;
     align-items:center;
     justify-content:center;
 }
-
 video{
     width:100%;
     height:100%;
@@ -95,31 +98,25 @@ video{
 }
 </style>
 </head>
-
 <body>
-
 <video
     id="player"
     controls
     autoplay
     playsinline
     preload="auto"
-    ${thumbnail ? `poster="${thumbnail}"` : ""}
+    ${safeThumbnailUrl ? `poster="${safeThumbnailUrl}"` : ""}
 >
-    <source src="${videoUrl}">
+    <source src="${safeVideoUrl}">
     Your browser does not support HTML5 video.
 </video>
-
 <script>
 const player = document.getElementById("player");
-
 player.play().catch(() => {});
-
 player.addEventListener("canplay", () => {
     player.play().catch(() => {});
 });
 </script>
-
 </body>
 </html>
 `);
