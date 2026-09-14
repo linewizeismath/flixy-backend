@@ -3,13 +3,13 @@
   "version": "1.0.0",
   "description": "Flixy backend API",
   "type": "module",
-  "main": "src/index.js",
+  "main": "src/server.js",
   "engines": {
     "node": "24.x"
   },
   "scripts": {
-    "dev": "nodemon -r dotenv/config --experimental-json-modules src/index.js",
-    "start": "node src/index.js"
+    "dev": "nodemon -r dotenv/config --experimental-json-modules src/server.js",
+    "start": "node src/server.js"
   },
   "keywords": [
     "javascript",
