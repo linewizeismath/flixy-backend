@@ -6,17 +6,20 @@ import {
     uploadVideo,
     updateVideo,
 } from "../controllers/video.controllers.js"
-import { playVideoByTitle } from "../controllers/play.controllers.js"
-import {verifyJWT} from "../middlewares/auth.middlewares.js"
-import {upload} from "../middlewares/multer.middlewares.js"
+import { playVideo } from "../controllers/play.controllers.js"
+import { verifyJWT } from "../middlewares/auth.middlewares.js"
+import { upload } from "../middlewares/multer.middlewares.js"
 
 const router = Router();
 
 // Public playback endpoint for VIXFLIX.
-// Example: /api/v1/videos/play?title=Interstellar
+// Movies:
+// /api/v1/videos/play?tmdbId=123&type=movie&title=Movie%20Name
+// TV/anime:
+// /api/v1/videos/play?tmdbId=123&type=tv&season=1&episode=2&title=Show%20Name
 router
     .route("/play")
-    .get(playVideoByTitle);
+    .get(playVideo);
 
 // Keep upload and management routes protected.
 router.use(verifyJWT);
