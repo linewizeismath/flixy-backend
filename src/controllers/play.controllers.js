@@ -6,6 +6,16 @@ const getNumber = (value) => {
     return Number.isFinite(number) ? number : null;
 };
 
+const escapeHtml = (value) => {
+    return String(value).replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[character]);
+};
+
 const playVideo = asyncHandler(async (req, res) => {
     const tmdbId = getNumber(req.query.tmdbId);
     const type = String(req.query.type || "").trim().toLowerCase();
@@ -13,17 +23,15 @@ const playVideo = asyncHandler(async (req, res) => {
     const episode = getNumber(req.query.episode);
 
     if (!tmdbId) {
-        return res.status(400).json({
-            success: false,
-            message: "Missing or invalid TMDB ID"
-        });
+        return res.status(400).send("Missing or invalid TMDB ID");
     }
 
     if (type !== "movie" && type !== "tv") {
-        return res.status(400).json({
-            success: false,
-            message: "Type must be movie or tv"
-        });
+        return res.status(400).send("Invalid media type");
+    }
+
+    if (type === "tv" && (season === null || episode === null)) {
+        return res.status(400).send("Season and episode are required");
     }
 
     const query = {
@@ -33,13 +41,6 @@ const playVideo = asyncHandler(async (req, res) => {
     };
 
     if (type === "tv") {
-        if (season === null || episode === null) {
-            return res.status(400).json({
-                success: false,
-                message: "Season and episode are required for TV content"
-            });
-        }
-
         query.season = season;
         query.episode = episode;
     } else {
@@ -48,29 +49,80 @@ const playVideo = asyncHandler(async (req, res) => {
     }
 
     const video = await Video.findOne(query).select(
-        "title videoFile thumbnail duration tmdbId type season episode"
+        "title videoFile thumbnail duration"
     );
 
     if (!video) {
-        return res.status(404).json({
-            success: false,
-            message: "Matching Flixy video was not found"
-        });
+        return res.status(404).send("Matching Flixy video was not found");
     }
 
-    return res.status(200).json({
-        success: true,
-        data: {
-            title: video.title,
-            videoFile: video.videoFile,
-            thumbnail: video.thumbnail,
-            duration: video.duration,
-            tmdbId: video.tmdbId,
-            type: video.type,
-            season: video.season,
-            episode: video.episode
-        }
-    });
+    const title = escapeHtml(video.title);
+    const videoUrl = escapeHtml(video.videoFile);
+    const thumbnail = video.thumbnail
+        ? escapeHtml(video.thumbnail)
+        : "";
+
+    res.status(200).type("html").send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title}</title>
+
+<style>
+html,body{
+    margin:0;
+    padding:0;
+    width:100%;
+    height:100%;
+    background:#000;
+    overflow:hidden;
+}
+
+body{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+video{
+    width:100%;
+    height:100%;
+    display:block;
+    background:#000;
+    object-fit:contain;
+}
+</style>
+</head>
+
+<body>
+
+<video
+    id="player"
+    controls
+    autoplay
+    playsinline
+    preload="auto"
+    ${thumbnail ? `poster="${thumbnail}"` : ""}
+>
+    <source src="${videoUrl}">
+    Your browser does not support HTML5 video.
+</video>
+
+<script>
+const player = document.getElementById("player");
+
+player.play().catch(() => {});
+
+player.addEventListener("canplay", () => {
+    player.play().catch(() => {});
+});
+</script>
+
+</body>
+</html>
+`);
 });
 
 export { playVideo };
