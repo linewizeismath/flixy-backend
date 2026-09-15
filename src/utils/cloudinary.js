@@ -19,12 +19,16 @@ const uploadOnCloudinary = async (localFilePath) => {
         if (!localFilePath) return null;
 
         const response = await cloudinary.uploader.upload(localFilePath, {
-            resource_type: "auto"
+            resource_type: "video",
+            folder: "flixy/videos"
         });
 
         fs.unlinkSync(localFilePath);
 
-        return response;
+        return {
+            ...response,
+            url: response.secure_url || response.url
+        };
 
     } catch (error) {
         console.error("CLOUDINARY UPLOAD ERROR:", error);
