@@ -16,6 +16,31 @@ const escapeHtml = (value) => {
     })[character]);
 };
 
+const getPlayableUrl = (value) => {
+    const raw = String(value || "").trim();
+
+    if (!raw) return "";
+
+    const secureUrl = raw.replace(/^http:\/\//i, "https://");
+
+    // Cloudinary video delivery. Force a browser-friendly MP4 delivery
+    // while keeping the original asset and URL structure intact.
+    if (/^https:\/\/res\.cloudinary\.com\//i.test(secureUrl)) {
+        if (/\/video\/upload\//i.test(secureUrl)) {
+            if (!/\/f_mp4[,/]/i.test(secureUrl)) {
+                return secureUrl.replace(
+                    /\/video\/upload\//i,
+                    "/video/upload/f_mp4,q_auto/"
+                );
+            }
+
+            return secureUrl;
+        }
+    }
+
+    return secureUrl;
+};
+
 const playVideo = asyncHandler(async (req, res) => {
     try {
         const tmdbId = getNumber(req.query.tmdbId);
@@ -57,17 +82,23 @@ const playVideo = asyncHandler(async (req, res) => {
             return res.status(404).send("Matching Flixy video was not found");
         }
 
-        const videoUrl = String(video.videoFile || "")
-            .replace(/^http:\/\//i, "https://");
-
+        const videoUrl = getPlayableUrl(video.videoFile);
         const thumbnailUrl = String(video.thumbnail || "")
+            .trim()
             .replace(/^http:\/\//i, "https://");
 
         if (!videoUrl) {
             return res.status(404).send("Flixy video URL is missing");
         }
 
-        const title = escapeHtml(video.title);
+        console.log("FLIXY PLAYBACK:", {
+            videoId: video._id?.toString(),
+            tmdbId,
+            type,
+            videoUrl
+        });
+
+        const title = escapeHtml(video.title || "Flixy Video");
         const safeVideoUrl = escapeHtml(videoUrl);
         const safeThumbnailUrl = escapeHtml(thumbnailUrl);
 
@@ -86,14 +117,15 @@ video{width:100%;height:100%;background:#000;object-fit:contain}
 </style>
 </head>
 <body>
-<video id="player" controls autoplay playsinline preload="auto" ${safeThumbnailUrl ? `poster="${safeThumbnailUrl}"` : ""}>
-<source src="${safeVideoUrl}">
+<video id="player" controls playsinline preload="metadata" ${safeThumbnailUrl ? `poster="${safeThumbnailUrl}"` : ""}>
+<source src="${safeVideoUrl}" type="video/mp4">
 Your browser does not support HTML5 video.
 </video>
 <div id="error"></div>
 <script>
 const player=document.getElementById("player");
 const errorBox=document.getElementById("error");
+
 player.addEventListener("loadedmetadata",()=>console.log("Flixy metadata loaded"));
 player.addEventListener("canplay",()=>console.log("Flixy can play"));
 player.addEventListener("error",()=>{
@@ -104,7 +136,6 @@ player.addEventListener("error",()=>{
     errorBox.textContent=message;
     errorBox.style.display="block";
 });
-player.play().catch(()=>{});
 </script>
 </body>
 </html>
